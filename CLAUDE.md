@@ -41,17 +41,21 @@ The codebase follows Clean Architecture with dependency inversion:
 **Detail Layer (Concrete/Variable):**
 - `src/adapters/git.rs` - `GitAdapter` implements `LineHistoryProvider` using git2
 - `src/formatters/` - Multiple formatters implement `OutputFormatter`
-  - `json.rs` - JSON output
-  - `colored.rs` - Terminal colored output
+  - `json.rs` - JSON output using serde_json
+  - `colored.rs` - Terminal colored output with ANSI colors
+  - `yaml.rs` - YAML output using serde_yaml
+  - `table.rs` - Tabular output using tabled crate
 
 **Dependency Flow:** Details depend on policies, never the reverse.
 
 ### Key Implementation Details
 
-**Git Blame Integration:**
-- Uses `git2::Blame::get_line()` with **1-based indexing** (not 0-based)
-- `blame.get_line(line_number as usize)` where `line_number` is the user-provided line number
-- The git2 API returns hunks (groups of consecutive lines from same commit), not individual lines
+**Git History Traversal:**
+- **Complete History**: Traces ALL commits that affected a line, not just the most recent
+- Uses `repository.revwalk()` with `git2::Sort::TIME` to traverse commit history chronologically
+- Implements `commit_affects_file()` and `commit_changes_line()` to filter relevant commits
+- **1-based indexing**: Line numbers match standard editor conventions (not 0-based)
+- Sorts entries chronologically (oldest first) using commit timestamps
 
 **Testing Strategy:**
 - Follows TDD (Test-Driven Development) with Red-Green-Refactor cycles
@@ -60,8 +64,9 @@ The codebase follows Clean Architecture with dependency inversion:
 
 **CLI Interface:**
 - Uses `clap` with derive macros for argument parsing
-- Supports `--format` option: `json` or `colored` (default)
-- CLI structure: `ombl <file> <line_number> [--format <format>]`
+- Supports `--format` option: `json`, `colored` (default), `yaml`, or `table`
+- CLI structure: `ombl <file> <line_number> [--format <format>] [--limit <number>]`
+- Additional `--limit` option for constraining number of commits traversed
 
 ## Module Structure
 
@@ -74,14 +79,30 @@ src/
 ├── adapters/         # External system integrations
 │   └── git.rs        # Git integration via git2
 └── formatters/       # Output format implementations
+    ├── mod.rs        # Module exports
     ├── json.rs       # JSON formatter
-    └── colored.rs    # Terminal colored formatter
+    ├── colored.rs    # Terminal colored formatter
+    ├── yaml.rs       # YAML formatter
+    └── table.rs      # Table formatter
 ```
 
 ## Development Notes
 
-- All data structures implement `serde::Serialize/Deserialize` for JSON compatibility
-- Error handling uses `anyhow::Result` throughout
-- The project uses Rust edition 2024
+### TDD Methodology
+- **Strictly follows TDD**: Red-Green-Refactor cycles as prescribed by t_wada
+- **Martin Fowler Refactoring**: Apply Extract Method, Remove Dead Code, and other techniques
+- **Test Structure**: Each formatter and major feature has comprehensive test coverage
+
+### Technical Details
+- All domain types implement `serde::Serialize/Deserialize` for multi-format output
+- Error handling uses `anyhow::Result` throughout for ergonomic error propagation
+- Uses Rust edition 2024 with modern language features
 - Git operations require the current directory to be a git repository
-- Line numbers in user interface are 1-based (matching standard editor conventions)
+- **Lifetime Management**: `git2::Commit<'_>` requires explicit lifetime annotations
+- **Dependencies**: serde_yaml, tabled, colored, chrono for various output formats
+
+### Key Gotchas
+- Line numbers are **1-based** in all user interfaces (not 0-based)
+- `git2::Commit` objects borrow from the Repository, requiring careful lifetime management
+- Pre-commit hooks auto-format with treefmt, may modify files during commit
+- Test repositories use explicit timestamps for deterministic chronological ordering
