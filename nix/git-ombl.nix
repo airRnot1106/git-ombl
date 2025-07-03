@@ -1,8 +1,12 @@
 {
+  lib,
+  stdenv,
   rustPlatform,
   versionCheckHook,
+  libiconv,
   openssl,
   pkg-config,
+  darwin,
 }:
 rustPlatform.buildRustPackage {
   pname = "git-ombl";
@@ -16,9 +20,14 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [
     pkg-config
   ];
-  buildInputs = [
-    openssl
-  ];
+  buildInputs =
+    [
+      libiconv
+      openssl
+    ]
+    ++ lib.optionals stdenv.isDarwin [
+      darwin.apple_sdk.frameworks.Security
+    ];
 
   checkFlags = [
     # Skip integration tests as they require a git repository

@@ -39,7 +39,16 @@
           ...
         }:
         {
-          packages.default = pkgs.callPackage ./nix/git-ombl.nix { };
+          packages = {
+            default = pkgs.callPackage ./nix/git-ombl.nix { };
+
+            # Cross-compilation packages for releases
+            git-ombl-linux-x86_64 = pkgs.callPackage ./nix/git-ombl.nix { };
+            git-ombl-linux-aarch64 = pkgs.pkgsCross.aarch64-multiplatform.callPackage ./nix/git-ombl.nix { };
+            git-ombl-macos-x86_64 = pkgs.pkgsCross.x86_64-darwin.callPackage ./nix/git-ombl.nix { };
+            git-ombl-macos-aarch64 = pkgs.pkgsCross.aarch64-darwin.callPackage ./nix/git-ombl.nix { };
+            git-ombl-windows-x86_64 = pkgs.pkgsCross.mingwW64.callPackage ./nix/git-ombl.nix { };
+          };
 
           devenv.shells.default = {
             packages = with pkgs; [
