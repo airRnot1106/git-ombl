@@ -10,9 +10,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Build and Run
 ```bash
+# Standard Rust development
 cargo build                              # Build the project
 cargo run -- <file> <line_number>       # Run with arguments
 ./target/debug/git-ombl <file> <line_number> # Run built binary directly
+
+# Nix development (recommended)
+nix develop                              # Enter development shell
+nix build                               # Build with Nix (skips integration tests)
+nix build .#git-ombl-linux-x86_64      # Cross-compile for specific platform
 ```
 
 ### Testing
@@ -21,12 +27,25 @@ cargo test                               # Run all tests
 cargo test <test_name>                   # Run specific test
 cargo test -- --nocapture               # Run tests with output
 cargo test adapters::git::tests::test_git_adapter_get_line_history -- --nocapture  # Single test with output
+
+# Test specific categories
+cargo test formatters::colored          # Test colored formatter
+cargo test integration_tests            # Run integration tests (requires git repo)
 ```
 
 ### Formatting and Linting
 - The project uses Nix flakes with treefmt for formatting
 - Pre-commit hooks automatically format Rust code with rustfmt
 - Formatting is enforced via git hooks (treefmt configuration in `nix/treefmt/default.nix`)
+- Nix integration tests are skipped during `nix build` due to missing git repository
+
+### Release Process
+```bash
+# Create and push version tag to trigger GitHub Actions release
+git tag v1.0.0
+git push origin v1.0.0
+# Automatically builds for: Linux (x86_64, aarch64), macOS (x86_64, aarch64), Windows (x86_64)
+```
 
 ## Architecture
 
@@ -114,8 +133,16 @@ src/
 - **Lifetime Management**: `git2::Commit<'_>` requires explicit lifetime annotations
 - **Dependencies**: serde_yaml, tabled, colored, chrono for various output formats
 
+### Cross-Platform Build System
+- **Nix Flakes**: Primary build system with reproducible builds
+- **Multi-platform Support**: Linux (x86_64, aarch64), macOS (x86_64, aarch64), Windows (x86_64)
+- **GitHub Actions**: Automated release pipeline triggered by version tags
+- **Build Strategy**: Separate runners for optimal cross-compilation (Ubuntu for Linux/Windows, macOS for Darwin)
+
 ### Key Gotchas
 - Line numbers are **1-based** in all user interfaces (not 0-based)
 - `git2::Commit` objects borrow from the Repository, requiring careful lifetime management
 - Pre-commit hooks auto-format with treefmt, may modify files during commit
 - Test repositories use explicit timestamps for deterministic chronological ordering
+- **Colored Tests**: Use `strip-ansi-escapes` dev-dependency to handle ANSI codes in non-TTY environments
+- **Nix Build Tests**: Integration tests are skipped in Nix builds due to missing git repository context
