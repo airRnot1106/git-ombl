@@ -1,6 +1,6 @@
-// This is a test file for git-ombl
+// This is a test file for git-ombl - MODIFIED
 // Line 2: Initial content
 // Line 3: More initial content
 fn main() {
-    println!("Hello, world!");
+    println!("Hello, modified world!");
 }
