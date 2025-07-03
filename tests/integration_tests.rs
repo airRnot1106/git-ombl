@@ -1,4 +1,4 @@
-use ombl::{
+use git_ombl::{
     ColoredFormatter, GitAdapter, JsonFormatter, LineHistory, LineHistoryUseCase, OutputFormatter,
     TableFormatter, YamlFormatter,
 };
@@ -78,28 +78,28 @@ fn test_sample_file_with_all_formatters() {
     assert_basic_history_properties(&history, "test_sample.rs", 1);
 
     // Test all formatters work with real data
-    let colored_formatter = ColoredFormatter::new();
     let json_formatter = JsonFormatter::new();
-    let table_formatter = TableFormatter::new();
+    let colored_formatter = ColoredFormatter::new();
     let yaml_formatter = YamlFormatter::new();
+    let table_formatter = TableFormatter::new();
 
-    let colored_output = colored_formatter.format(&history);
     let json_output = json_formatter.format(&history);
-    let table_output = table_formatter.format(&history);
+    let colored_output = colored_formatter.format(&history);
     let yaml_output = yaml_formatter.format(&history);
+    let table_output = table_formatter.format(&history);
 
     // Verify each formatter produces expected content
-    assert!(colored_output.contains("test_sample.rs:1"));
-
     assert!(json_output.contains("\"file_path\": \"test_sample.rs\""));
     assert!(json_output.contains("\"line_number\": 1"));
+
+    assert!(colored_output.contains("test_sample.rs:1"));
+
+    assert!(yaml_output.contains("file_path: test_sample.rs"));
+    assert!(yaml_output.contains("line_number: 1"));
 
     assert!(table_output.contains("File: test_sample.rs"));
     assert!(table_output.contains("Line: 1"));
     assert!(table_output.contains("Commit"));
-
-    assert!(yaml_output.contains("file_path: test_sample.rs"));
-    assert!(yaml_output.contains("line_number: 1"));
 
     // Verify all formatters handle the same number of entries
     // JSON should be parseable

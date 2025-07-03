@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`ombl` (Ultrathink Git Blame) is a Rust CLI tool that extends git blame functionality to trace the complete history of individual lines across all commits, not just the most recent change. The tool is built using Clean Architecture principles with clear separation between domain logic, use cases, and adapters.
+`git-ombl` (Ultrathink Git Blame) is a Rust CLI tool that extends git blame functionality to trace the complete history of individual lines across all commits, not just the most recent change. The tool is built using Clean Architecture principles with clear separation between domain logic, use cases, and adapters.
 
 ## Development Commands
 
@@ -12,20 +12,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 cargo build                              # Build the project
 cargo run -- <file> <line_number>       # Run with arguments
-./target/debug/ombl <file> <line_number> # Run built binary directly
+./target/debug/git-ombl <file> <line_number> # Run built binary directly
 ```
 
 ### Testing
 ```bash
-cargo test                               # Run all tests (unit + integration)
-cargo test --test integration_tests     # Run only integration tests
-cargo test <test_name>                   # Run specific test by name
-cargo test -- --nocapture               # Run tests with stdout output
+cargo test                               # Run all tests
+cargo test <test_name>                   # Run specific test
+cargo test -- --nocapture               # Run tests with output
 cargo test adapters::git::tests::test_git_adapter_get_line_history -- --nocapture  # Single test with output
-
-# Integration test examples
-cargo test test_sample_file_line_history_integration
-cargo test test_sample_file_with_all_formatters
 ```
 
 ### Formatting and Linting
@@ -36,22 +31,25 @@ cargo test test_sample_file_with_all_formatters
 ## Architecture
 
 ### Clean Architecture Implementation
-The codebase follows Clean Architecture with dependency inversion:
+The codebase follows Clean Architecture with dependency inversion using a "Package by Feature + Core" structure:
 
-**Policy Layer (Stable/Abstract):**
-- `src/policy.rs` - Contains traits `LineHistoryProvider` and `OutputFormatter`
-- `src/domain.rs` - Core domain types (`LineHistory`, `LineEntry`, `ChangeType`)
-- Use case: `LineHistoryUseCase<P: LineHistoryProvider>`
+**Core Layer (Stable/Abstract):**
+- `src/core/line_history/` - Line history domain and abstractions
+  - `domain.rs` - Core domain types (`LineHistory`, `LineEntry`, `ChangeType`)
+  - `provider.rs` - `LineHistoryProvider` trait for data sources
+  - `use_case.rs` - `LineHistoryUseCase<P: LineHistoryProvider>` business logic
+- `src/core/formatting/` - Output formatting abstractions
+  - `formatter.rs` - `OutputFormatter` trait
 
-**Detail Layer (Concrete/Variable):**
+**Adapter Layer (Concrete/Variable):**
 - `src/adapters/git.rs` - `GitAdapter` implements `LineHistoryProvider` using git2
 - `src/formatters/` - Multiple formatters implement `OutputFormatter`
-  - `colored.rs` - Terminal colored output with ANSI colors
   - `json.rs` - JSON output using serde_json
-  - `table.rs` - Tabular output using tabled crate
+  - `colored.rs` - Terminal colored output with ANSI colors
   - `yaml.rs` - YAML output using serde_yaml
+  - `table.rs` - Tabular output using tabled crate
 
-**Dependency Flow:** Details depend on policies, never the reverse.
+**Dependency Flow:** Adapters depend on core abstractions, never the reverse.
 
 ### Key Implementation Details
 
@@ -64,15 +62,13 @@ The codebase follows Clean Architecture with dependency inversion:
 
 **Testing Strategy:**
 - Follows TDD (Test-Driven Development) with Red-Green-Refactor cycles
-- **Unit Tests**: Uses `tempfile` and `git2::Repository::init()` for isolated test repositories
-- **Integration Tests**: Real-world testing with `test_sample.rs` (has 3-commit history for line 1)
+- Uses `tempfile` and `git2::Repository::init()` for isolated test repositories
 - Tests use `mockall` for mocking in dev-dependencies but rely primarily on test implementations
-- Integration tests verify all formatters with actual git repository data
 
 **CLI Interface:**
 - Uses `clap` with derive macros for argument parsing
-- Supports `--format` option: `colored` (default), `json`, `table`, or `yaml`
-- CLI structure: `ombl <file> <line_number> [--format <format>] [--limit <number>]`
+- Supports `--format` option: `json`, `colored` (default), `yaml`, or `table`
+- CLI structure: `git-ombl <file> <line_number> [--format <format>] [--limit <number>]`
 - Additional `--limit` option for constraining number of commits traversed
 
 ## Module Structure
@@ -81,21 +77,25 @@ The codebase follows Clean Architecture with dependency inversion:
 src/
 ├── main.rs           # CLI entry point and argument parsing
 ├── lib.rs            # Module exports and re-exports
-├── domain.rs         # Core domain types (LineHistory, LineEntry, ChangeType)
-├── policy.rs         # Traits and use case (LineHistoryProvider, OutputFormatter)
+├── core/             # Core business logic and abstractions
+│   ├── line_history/ # Line history domain and use cases
+│   │   ├── domain.rs # Core domain types (LineHistory, LineEntry, ChangeType)
+│   │   ├── provider.rs # LineHistoryProvider trait
+│   │   ├── use_case.rs # LineHistoryUseCase business logic
+│   │   └── mod.rs    # Module exports
+│   ├── formatting/   # Output formatting abstractions
+│   │   ├── formatter.rs # OutputFormatter trait
+│   │   └── mod.rs    # Module exports
+│   └── mod.rs        # Core module exports
 ├── adapters/         # External system integrations
-│   └── git.rs        # Git integration via git2
+│   ├── git.rs        # Git integration via git2
+│   └── mod.rs        # Adapter exports
 └── formatters/       # Output format implementations
     ├── mod.rs        # Module exports
-    ├── colored.rs    # Terminal colored formatter
     ├── json.rs       # JSON formatter
-    ├── table.rs      # Table formatter
-    └── yaml.rs       # YAML formatter
-
-tests/
-└── integration_tests.rs # Integration tests with real git data
-
-test_sample.rs        # Test file with 3-commit history for integration testing
+    ├── colored.rs    # Terminal colored formatter
+    ├── yaml.rs       # YAML formatter
+    └── table.rs      # Table formatter
 ```
 
 ## Development Notes
@@ -104,6 +104,7 @@ test_sample.rs        # Test file with 3-commit history for integration testing
 - **Strictly follows TDD**: Red-Green-Refactor cycles as prescribed by t_wada
 - **Martin Fowler Refactoring**: Apply Extract Method, Remove Dead Code, and other techniques
 - **Test Structure**: Each formatter and major feature has comprehensive test coverage
+- **Architecture Evolution**: Refactored from flat structure to "Package by Feature + Core" for better separation of concerns
 
 ### Technical Details
 - All domain types implement `serde::Serialize/Deserialize` for multi-format output
@@ -118,10 +119,3 @@ test_sample.rs        # Test file with 3-commit history for integration testing
 - `git2::Commit` objects borrow from the Repository, requiring careful lifetime management
 - Pre-commit hooks auto-format with treefmt, may modify files during commit
 - Test repositories use explicit timestamps for deterministic chronological ordering
-
-### Integration Testing
-- `test_sample.rs` is a real file in the repository with git history for testing
-- Line 1 has been modified across 3 commits to test complete history traversal
-- Integration tests verify all formatters (Colored, JSON, Table, YAML) work with real data
-- Tests check chronological ordering, change types, and commit message validation
-- Use `cargo run -- test_sample.rs 1 --format <format>` to manually test output formats

@@ -1,13 +1,13 @@
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use ombl::{
+use git_ombl::{
     ColoredFormatter, GitAdapter, JsonFormatter, LineHistoryUseCase, OutputFormatter,
     TableFormatter, YamlFormatter,
 };
 use std::env;
 
 #[derive(Parser)]
-#[command(name = "ombl")]
+#[command(name = "git-ombl")]
 #[command(about = "Ultrathink git blame - trace complete line history")]
 struct Cli {
     /// File path to analyze
@@ -66,7 +66,7 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ombl::LineHistory;
+    use git_ombl::LineHistory;
 
     #[test]
     fn test_format_enum_parsing() {
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_cli_parsing() {
-        let cli = Cli::parse_from(&["ombl", "test.rs", "42", "--format", "json"]);
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--format", "json"]);
 
         assert_eq!(cli.file, "test.rs");
         assert_eq!(cli.line, 42);
