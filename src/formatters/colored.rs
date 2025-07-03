@@ -61,7 +61,7 @@ impl OutputFormatter for ColoredFormatter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{ChangeType, LineEntry};
+    use crate::core::line_history::{ChangeType, LineEntry};
     use chrono::{TimeZone, Utc};
 
     #[test]
