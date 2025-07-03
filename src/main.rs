@@ -1,6 +1,9 @@
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use ombl::{ColoredFormatter, GitAdapter, JsonFormatter, LineHistoryUseCase, OutputFormatter};
+use ombl::{
+    ColoredFormatter, GitAdapter, JsonFormatter, LineHistoryUseCase, OutputFormatter,
+    TableFormatter, YamlFormatter,
+};
 use std::env;
 
 #[derive(Parser)]
@@ -26,6 +29,8 @@ struct Cli {
 enum Format {
     Json,
     Colored,
+    Yaml,
+    Table,
 }
 
 fn main() -> Result<()> {
@@ -47,6 +52,8 @@ fn main() -> Result<()> {
     let formatter: Box<dyn OutputFormatter> = match cli.format {
         Format::Json => Box::new(JsonFormatter::new()),
         Format::Colored => Box::new(ColoredFormatter::new()),
+        Format::Yaml => Box::new(YamlFormatter::new()),
+        Format::Table => Box::new(TableFormatter::new()),
     };
 
     // Format and output
@@ -67,6 +74,8 @@ mod tests {
 
         assert_eq!(Format::from_str("json", true).unwrap(), Format::Json);
         assert_eq!(Format::from_str("colored", true).unwrap(), Format::Colored);
+        assert_eq!(Format::from_str("yaml", true).unwrap(), Format::Yaml);
+        assert_eq!(Format::from_str("table", true).unwrap(), Format::Table);
     }
 
     #[test]
@@ -82,13 +91,19 @@ mod tests {
     fn test_formatter_selection() {
         let json_formatter: Box<dyn OutputFormatter> = Box::new(JsonFormatter::new());
         let colored_formatter: Box<dyn OutputFormatter> = Box::new(ColoredFormatter::new());
+        let yaml_formatter: Box<dyn OutputFormatter> = Box::new(YamlFormatter::new());
+        let table_formatter: Box<dyn OutputFormatter> = Box::new(TableFormatter::new());
 
         let history = LineHistory::new("test.rs".to_string(), 42);
 
         let json_output = json_formatter.format(&history);
         let colored_output = colored_formatter.format(&history);
+        let yaml_output = yaml_formatter.format(&history);
+        let table_output = table_formatter.format(&history);
 
         assert!(json_output.contains("\"file_path\""));
         assert!(colored_output.contains("test.rs:42"));
+        assert!(yaml_output.contains("file_path: test.rs"));
+        assert!(table_output.contains("File: test.rs"));
     }
 }
