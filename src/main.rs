@@ -90,6 +90,7 @@ mod tests {
 
     #[test]
     fn test_formatter_selection() {
+        colored::control::set_override(true);
         let colored_formatter: Box<dyn OutputFormatter> = Box::new(ColoredFormatter::new());
         let json_formatter: Box<dyn OutputFormatter> = Box::new(JsonFormatter::new());
         let table_formatter: Box<dyn OutputFormatter> = Box::new(TableFormatter::new());
@@ -102,7 +103,11 @@ mod tests {
         let table_output = table_formatter.format(&history);
         let yaml_output = yaml_formatter.format(&history);
 
-        assert!(colored_output.contains("test.rs:42"));
+        // Strip ANSI codes for colored output testing
+        let stripped = strip_ansi_escapes::strip(&colored_output);
+        let stripped_str = String::from_utf8(stripped).unwrap();
+
+        assert!(stripped_str.contains("test.rs:42"));
         assert!(json_output.contains("\"file_path\""));
         assert!(table_output.contains("File: test.rs"));
         assert!(yaml_output.contains("file_path: test.rs"));

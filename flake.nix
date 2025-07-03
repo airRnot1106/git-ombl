@@ -39,6 +39,8 @@
           ...
         }:
         {
+          packages.default = pkgs.callPackage ./nix/git-ombl.nix { };
+
           devenv.shells.default = {
             packages = with pkgs; [
               git
