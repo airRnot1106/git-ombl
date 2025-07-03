@@ -25,6 +25,16 @@ pub enum ChangeType {
     Deleted,
 }
 
+impl std::fmt::Display for ChangeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChangeType::Created => write!(f, "Created"),
+            ChangeType::Modified => write!(f, "Modified"),
+            ChangeType::Deleted => write!(f, "Deleted"),
+        }
+    }
+}
+
 impl LineHistory {
     pub fn new(file_path: String, line_number: u32) -> Self {
         Self {
