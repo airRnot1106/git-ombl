@@ -17,10 +17,15 @@ cargo run -- <file> <line_number>       # Run with arguments
 
 ### Testing
 ```bash
-cargo test                               # Run all tests
-cargo test <test_name>                   # Run specific test
-cargo test -- --nocapture               # Run tests with output
+cargo test                               # Run all tests (unit + integration)
+cargo test --test integration_tests     # Run only integration tests
+cargo test <test_name>                   # Run specific test by name
+cargo test -- --nocapture               # Run tests with stdout output
 cargo test adapters::git::tests::test_git_adapter_get_line_history -- --nocapture  # Single test with output
+
+# Integration test examples
+cargo test test_sample_file_line_history_integration
+cargo test test_sample_file_with_all_formatters
 ```
 
 ### Formatting and Linting
@@ -59,8 +64,10 @@ The codebase follows Clean Architecture with dependency inversion:
 
 **Testing Strategy:**
 - Follows TDD (Test-Driven Development) with Red-Green-Refactor cycles
-- Uses `tempfile` and `git2::Repository::init()` for isolated test repositories
+- **Unit Tests**: Uses `tempfile` and `git2::Repository::init()` for isolated test repositories
+- **Integration Tests**: Real-world testing with `test_sample.rs` (has 3-commit history for line 1)
 - Tests use `mockall` for mocking in dev-dependencies but rely primarily on test implementations
+- Integration tests verify all formatters with actual git repository data
 
 **CLI Interface:**
 - Uses `clap` with derive macros for argument parsing
@@ -84,6 +91,11 @@ src/
     ├── colored.rs    # Terminal colored formatter
     ├── yaml.rs       # YAML formatter
     └── table.rs      # Table formatter
+
+tests/
+└── integration_tests.rs # Integration tests with real git data
+
+test_sample.rs        # Test file with 3-commit history for integration testing
 ```
 
 ## Development Notes
@@ -106,3 +118,10 @@ src/
 - `git2::Commit` objects borrow from the Repository, requiring careful lifetime management
 - Pre-commit hooks auto-format with treefmt, may modify files during commit
 - Test repositories use explicit timestamps for deterministic chronological ordering
+
+### Integration Testing
+- `test_sample.rs` is a real file in the repository with git history for testing
+- Line 1 has been modified across 3 commits to test complete history traversal
+- Integration tests verify all formatters (JSON, YAML, Table, Colored) work with real data
+- Tests check chronological ordering, change types, and commit message validation
+- Use `cargo run -- test_sample.rs 1 --format <format>` to manually test output formats

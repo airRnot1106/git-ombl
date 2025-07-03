@@ -1,9 +1,7 @@
 pub mod adapters;
-pub mod domain;
+pub mod core;
 pub mod formatters;
-pub mod policy;
 
 pub use adapters::*;
-pub use domain::*;
+pub use core::*;
 pub use formatters::*;
-pub use policy::*;
