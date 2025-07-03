@@ -44,7 +44,7 @@ impl GitAdapter {
         &self,
         file_path: &str,
         line_number: u32,
-    ) -> Result<Vec<git2::Commit>> {
+    ) -> Result<Vec<git2::Commit<'_>>> {
         let mut commits = Vec::new();
         let mut revwalk = self.repository.revwalk()?;
         revwalk.push_head()?;
