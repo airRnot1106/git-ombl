@@ -1,13 +1,5 @@
-use crate::domain::LineHistory;
+use crate::core::line_history::{LineHistory, LineHistoryProvider};
 use anyhow::Result;
-
-pub trait LineHistoryProvider {
-    fn get_line_history(&self, file_path: &str, line_number: u32) -> Result<LineHistory>;
-}
-
-pub trait OutputFormatter {
-    fn format(&self, history: &LineHistory) -> String;
-}
 
 pub struct LineHistoryUseCase<P: LineHistoryProvider> {
     provider: P,
@@ -26,7 +18,7 @@ impl<P: LineHistoryProvider> LineHistoryUseCase<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{ChangeType, LineEntry};
+    use crate::core::line_history::{ChangeType, LineEntry};
     use chrono::{TimeZone, Utc};
 
     struct EmptyProvider;

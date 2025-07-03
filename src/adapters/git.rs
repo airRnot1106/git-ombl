@@ -1,5 +1,4 @@
-use crate::domain::{ChangeType, LineEntry, LineHistory};
-use crate::policy::LineHistoryProvider;
+use crate::core::line_history::{ChangeType, LineEntry, LineHistory, LineHistoryProvider};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use git2::Repository;

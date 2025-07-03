@@ -1,5 +1,5 @@
-use crate::domain::LineHistory;
-use crate::policy::OutputFormatter;
+use crate::core::formatting::OutputFormatter;
+use crate::core::line_history::LineHistory;
 
 pub struct JsonFormatter;
 
