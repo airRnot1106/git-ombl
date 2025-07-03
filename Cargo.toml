@@ -17,3 +17,4 @@ chrono = { version = "0.4", features = ["serde"] }
 [dev-dependencies]
 mockall = "0.12"
 tempfile = "3.8"
+strip-ansi-escapes = "0.2"

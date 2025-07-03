@@ -66,17 +66,23 @@ mod tests {
 
     #[test]
     fn test_colored_formatter_empty_history() {
+        colored::control::set_override(true);
         let formatter = ColoredFormatter::new();
         let history = LineHistory::new("test.rs".to_string(), 42);
 
         let result = formatter.format(&history);
 
-        assert!(result.contains("test.rs:42"));
-        assert!(result.contains("No history found"));
+        // Strip ANSI codes for testing
+        let stripped = strip_ansi_escapes::strip(&result);
+        let stripped_str = String::from_utf8(stripped).unwrap();
+
+        assert!(stripped_str.contains("test.rs:42"));
+        assert!(stripped_str.contains("No history found"));
     }
 
     #[test]
     fn test_colored_formatter_with_entries() {
+        colored::control::set_override(true);
         let formatter = ColoredFormatter::new();
         let mut history = LineHistory::new("test.rs".to_string(), 42);
 
@@ -91,17 +97,22 @@ mod tests {
 
         let result = formatter.format(&history);
 
-        // Test that essential information is present (colors are ANSI escaped)
-        assert!(result.contains("test.rs:42"));
-        assert!(result.contains("abc12345")); // First 8 chars of commit hash
-        assert!(result.contains("John Doe"));
-        assert!(result.contains("Initial commit"));
-        assert!(result.contains("Created"));
-        assert!(result.contains("println!"));
+        // Strip ANSI codes for testing
+        let stripped = strip_ansi_escapes::strip(&result);
+        let stripped_str = String::from_utf8(stripped).unwrap();
+
+        // Test that essential information is present
+        assert!(stripped_str.contains("test.rs:42"));
+        assert!(stripped_str.contains("abc12345")); // First 8 chars of commit hash
+        assert!(stripped_str.contains("John Doe"));
+        assert!(stripped_str.contains("Initial commit"));
+        assert!(stripped_str.contains("Created"));
+        assert!(stripped_str.contains("println!"));
     }
 
     #[test]
     fn test_colored_formatter_multiple_entries() {
+        colored::control::set_override(true);
         let formatter = ColoredFormatter::new();
         let mut history = LineHistory::new("test.rs".to_string(), 42);
 
@@ -125,11 +136,15 @@ mod tests {
 
         let result = formatter.format(&history);
 
-        assert!(result.contains("John Doe"));
-        assert!(result.contains("Jane Smith"));
-        assert!(result.contains("Initial commit"));
-        assert!(result.contains("Update line"));
-        assert!(result.contains("old content"));
-        assert!(result.contains("new content"));
+        // Strip ANSI codes for testing
+        let stripped = strip_ansi_escapes::strip(&result);
+        let stripped_str = String::from_utf8(stripped).unwrap();
+
+        assert!(stripped_str.contains("John Doe"));
+        assert!(stripped_str.contains("Jane Smith"));
+        assert!(stripped_str.contains("Initial commit"));
+        assert!(stripped_str.contains("Update line"));
+        assert!(stripped_str.contains("old content"));
+        assert!(stripped_str.contains("new content"));
     }
 }
