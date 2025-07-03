@@ -28,36 +28,31 @@ impl GitAdapter {
     fn extract_line_entries(&self, blame: &Blame, line_number: u32) -> Result<Vec<LineEntry>> {
         let mut entries = Vec::new();
 
-        // Check if line number is within bounds
-        if line_number == 0 || line_number as usize > blame.len() {
+        // Check if line number is valid
+        if line_number == 0 {
             return Ok(entries);
         }
 
-        // Try to get the hunk for the specified line (0-indexed)
-        let index = (line_number - 1) as usize;
+        // Use git2's get_line method to get the hunk for the specific line
+        // line_number is 1-based, but get_line expects 0-based index
+        if let Some(hunk) = blame.get_line(line_number as usize - 1) {
+            let commit_id = hunk.final_commit_id();
+            let commit = self.repository.find_commit(commit_id)?;
 
-        // Iterate through all hunks to find the one that contains our line
-        for (i, hunk) in blame.iter().enumerate() {
-            if i == index {
-                let commit_id = hunk.final_commit_id();
-                let commit = self.repository.find_commit(commit_id)?;
+            let author = commit.author();
+            let timestamp =
+                DateTime::from_timestamp(commit.time().seconds(), 0).unwrap_or_else(|| Utc::now());
 
-                let author = commit.author();
-                let timestamp = DateTime::from_timestamp(commit.time().seconds(), 0)
-                    .unwrap_or_else(|| Utc::now());
+            let entry = LineEntry {
+                commit_hash: commit_id.to_string(),
+                author: author.name().unwrap_or("Unknown").to_string(),
+                timestamp,
+                message: commit.message().unwrap_or("").to_string(),
+                content: "".to_string(), // TODO: Extract actual line content
+                change_type: ChangeType::Created, // TODO: Determine if created/modified
+            };
 
-                let entry = LineEntry {
-                    commit_hash: commit_id.to_string(),
-                    author: author.name().unwrap_or("Unknown").to_string(),
-                    timestamp,
-                    message: commit.message().unwrap_or("").to_string(),
-                    content: "".to_string(), // TODO: Extract actual line content
-                    change_type: ChangeType::Created, // First occurrence is creation
-                };
-
-                entries.push(entry);
-                break;
-            }
+            entries.push(entry);
         }
 
         Ok(entries)
