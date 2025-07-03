@@ -34,8 +34,8 @@ impl GitAdapter {
         }
 
         // Use git2's get_line method to get the hunk for the specific line
-        // line_number is 1-based, but get_line expects 0-based index
-        if let Some(hunk) = blame.get_line(line_number as usize - 1) {
+        // Note: get_line uses 1-based indexing (same as user input)
+        if let Some(hunk) = blame.get_line(line_number as usize) {
             let commit_id = hunk.final_commit_id();
             let commit = self.repository.find_commit(commit_id)?;
 
