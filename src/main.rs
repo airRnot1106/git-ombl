@@ -9,6 +9,7 @@ use std::env;
 #[derive(Parser)]
 #[command(name = "git-ombl")]
 #[command(about = "Ultrathink git blame - trace complete line history")]
+#[command(version)]
 struct Cli {
     /// File path to analyze
     file: String,
