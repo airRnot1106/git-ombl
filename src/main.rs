@@ -27,10 +27,10 @@ struct Cli {
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
 enum Format {
-    Json,
     Colored,
-    Yaml,
+    Json,
     Table,
+    Yaml,
 }
 
 fn main() -> Result<()> {
@@ -50,10 +50,10 @@ fn main() -> Result<()> {
 
     // Create formatter based on format choice
     let formatter: Box<dyn OutputFormatter> = match cli.format {
-        Format::Json => Box::new(JsonFormatter::new()),
         Format::Colored => Box::new(ColoredFormatter::new()),
-        Format::Yaml => Box::new(YamlFormatter::new()),
+        Format::Json => Box::new(JsonFormatter::new()),
         Format::Table => Box::new(TableFormatter::new()),
+        Format::Yaml => Box::new(YamlFormatter::new()),
     };
 
     // Format and output
@@ -72,10 +72,10 @@ mod tests {
     fn test_format_enum_parsing() {
         use clap::ValueEnum;
 
-        assert_eq!(Format::from_str("json", true).unwrap(), Format::Json);
         assert_eq!(Format::from_str("colored", true).unwrap(), Format::Colored);
-        assert_eq!(Format::from_str("yaml", true).unwrap(), Format::Yaml);
+        assert_eq!(Format::from_str("json", true).unwrap(), Format::Json);
         assert_eq!(Format::from_str("table", true).unwrap(), Format::Table);
+        assert_eq!(Format::from_str("yaml", true).unwrap(), Format::Yaml);
     }
 
     #[test]
@@ -89,21 +89,21 @@ mod tests {
 
     #[test]
     fn test_formatter_selection() {
-        let json_formatter: Box<dyn OutputFormatter> = Box::new(JsonFormatter::new());
         let colored_formatter: Box<dyn OutputFormatter> = Box::new(ColoredFormatter::new());
-        let yaml_formatter: Box<dyn OutputFormatter> = Box::new(YamlFormatter::new());
+        let json_formatter: Box<dyn OutputFormatter> = Box::new(JsonFormatter::new());
         let table_formatter: Box<dyn OutputFormatter> = Box::new(TableFormatter::new());
+        let yaml_formatter: Box<dyn OutputFormatter> = Box::new(YamlFormatter::new());
 
         let history = LineHistory::new("test.rs".to_string(), 42);
 
-        let json_output = json_formatter.format(&history);
         let colored_output = colored_formatter.format(&history);
-        let yaml_output = yaml_formatter.format(&history);
+        let json_output = json_formatter.format(&history);
         let table_output = table_formatter.format(&history);
+        let yaml_output = yaml_formatter.format(&history);
 
-        assert!(json_output.contains("\"file_path\""));
         assert!(colored_output.contains("test.rs:42"));
-        assert!(yaml_output.contains("file_path: test.rs"));
+        assert!(json_output.contains("\"file_path\""));
         assert!(table_output.contains("File: test.rs"));
+        assert!(yaml_output.contains("file_path: test.rs"));
     }
 }

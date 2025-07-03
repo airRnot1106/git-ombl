@@ -46,10 +46,10 @@ The codebase follows Clean Architecture with dependency inversion:
 **Detail Layer (Concrete/Variable):**
 - `src/adapters/git.rs` - `GitAdapter` implements `LineHistoryProvider` using git2
 - `src/formatters/` - Multiple formatters implement `OutputFormatter`
-  - `json.rs` - JSON output using serde_json
   - `colored.rs` - Terminal colored output with ANSI colors
-  - `yaml.rs` - YAML output using serde_yaml
+  - `json.rs` - JSON output using serde_json
   - `table.rs` - Tabular output using tabled crate
+  - `yaml.rs` - YAML output using serde_yaml
 
 **Dependency Flow:** Details depend on policies, never the reverse.
 
@@ -71,7 +71,7 @@ The codebase follows Clean Architecture with dependency inversion:
 
 **CLI Interface:**
 - Uses `clap` with derive macros for argument parsing
-- Supports `--format` option: `json`, `colored` (default), `yaml`, or `table`
+- Supports `--format` option: `colored` (default), `json`, `table`, or `yaml`
 - CLI structure: `ombl <file> <line_number> [--format <format>] [--limit <number>]`
 - Additional `--limit` option for constraining number of commits traversed
 
@@ -87,10 +87,10 @@ src/
 │   └── git.rs        # Git integration via git2
 └── formatters/       # Output format implementations
     ├── mod.rs        # Module exports
-    ├── json.rs       # JSON formatter
     ├── colored.rs    # Terminal colored formatter
-    ├── yaml.rs       # YAML formatter
-    └── table.rs      # Table formatter
+    ├── json.rs       # JSON formatter
+    ├── table.rs      # Table formatter
+    └── yaml.rs       # YAML formatter
 
 tests/
 └── integration_tests.rs # Integration tests with real git data
@@ -122,6 +122,6 @@ test_sample.rs        # Test file with 3-commit history for integration testing
 ### Integration Testing
 - `test_sample.rs` is a real file in the repository with git history for testing
 - Line 1 has been modified across 3 commits to test complete history traversal
-- Integration tests verify all formatters (JSON, YAML, Table, Colored) work with real data
+- Integration tests verify all formatters (Colored, JSON, Table, YAML) work with real data
 - Tests check chronological ordering, change types, and commit message validation
 - Use `cargo run -- test_sample.rs 1 --format <format>` to manually test output formats
