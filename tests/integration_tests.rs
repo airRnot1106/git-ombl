@@ -78,6 +78,7 @@ fn test_sample_file_with_all_formatters() {
     assert_basic_history_properties(&history, "test_sample.rs", 1);
 
     // Test all formatters work with real data
+    colored::control::set_override(true);
     let json_formatter = JsonFormatter::new();
     let colored_formatter = ColoredFormatter::new();
     let yaml_formatter = YamlFormatter::new();
@@ -92,7 +93,10 @@ fn test_sample_file_with_all_formatters() {
     assert!(json_output.contains("\"file_path\": \"test_sample.rs\""));
     assert!(json_output.contains("\"line_number\": 1"));
 
-    assert!(colored_output.contains("test_sample.rs:1"));
+    // Strip ANSI codes for colored output testing
+    let stripped = strip_ansi_escapes::strip(&colored_output);
+    let stripped_str = String::from_utf8(stripped).unwrap();
+    assert!(stripped_str.contains("test_sample.rs:1"));
 
     assert!(yaml_output.contains("file_path: test_sample.rs"));
     assert!(yaml_output.contains("line_number: 1"));
