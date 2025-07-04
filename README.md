@@ -29,6 +29,9 @@ git-ombl <file> <line_number> [OPTIONS]
   - `table`: Tabular format
 - `-l, --limit <LIMIT>`: Maximum number of commits to traverse
 - `-s, --sort <SORT>`: Sort order for commit history [default: asc] [possible values: asc, desc]
+- `--ignore-rev <COMMIT>`: Ignore changes made by the specified revision(s)
+- `--since <DATE>`: Show commits more recent than a specific date (e.g., "2023-01-01", "2023-01-01T12:00:00Z")
+- `--until <DATE>`: Show commits older than a specific date (e.g., "2023-12-31", "2023-12-31T23:59:59Z")
 - `-h, --help`: Print help
 - `-V, --version`: Print version
 
@@ -46,6 +49,18 @@ git-ombl src/main.rs 42 --limit 10
 
 # Show history in descending order (newest first)
 git-ombl src/main.rs 42 --sort desc
+
+# Ignore specific commits (useful for formatting commits)
+git-ombl src/main.rs 42 --ignore-rev abc123def --ignore-rev 456789ghi
+
+# Show commits from a specific date onwards
+git-ombl src/main.rs 42 --since "2023-01-01"
+
+# Show commits within a date range
+git-ombl src/main.rs 42 --since "2023-01-01" --until "2023-12-31"
+
+# Combine multiple filters
+git-ombl src/main.rs 42 --since "2023-06-01" --ignore-rev abc123 --sort desc
 ```
 
 ### Sample Output

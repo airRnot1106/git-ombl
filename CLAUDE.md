@@ -77,7 +77,11 @@ The codebase follows Clean Architecture with dependency inversion using a "Packa
 - Uses `repository.revwalk()` with `git2::Sort::TIME` to traverse commit history chronologically
 - Implements `commit_affects_file()` and `commit_changes_line()` to filter relevant commits
 - **1-based indexing**: Line numbers match standard editor conventions (not 0-based)
-- Sorts entries chronologically (oldest first) using commit timestamps
+- **Filtering Support**: Multiple filtering methods integrated into commit traversal:
+  - Hash-based filtering: supports full and abbreviated commit hashes (`--ignore-rev`)
+  - Date-based filtering: ISO 8601, simple dates, and datetime formats (`--since`/`--until`)
+  - Sort ordering: chronological (asc) or reverse-chronological (desc) (`--sort`)
+- All filters work together and maintain performance with large repositories
 
 **Testing Strategy:**
 - Follows TDD (Test-Driven Development) with Red-Green-Refactor cycles
@@ -87,8 +91,13 @@ The codebase follows Clean Architecture with dependency inversion using a "Packa
 **CLI Interface:**
 - Uses `clap` with derive macros for argument parsing
 - Supports `--format` option: `json`, `colored` (default), `yaml`, or `table`
-- CLI structure: `git-ombl <file> <line_number> [--format <format>] [--limit <number>]`
-- Additional `--limit` option for constraining number of commits traversed
+- CLI structure: `git-ombl <file> <line_number> [OPTIONS]`
+- **Filtering Options:**
+  - `--sort asc|desc` - Sort order for commit history (default: asc)
+  - `--ignore-rev <commit>` - Ignore changes made by specified revision(s), supports multiple instances
+  - `--since <date>` - Show commits more recent than specified date
+  - `--until <date>` - Show commits older than specified date
+  - `--limit <number>` - Maximum number of commits to traverse
 
 ## Module Structure
 
@@ -105,6 +114,7 @@ src/
 │   ├── formatting/   # Output formatting abstractions
 │   │   ├── formatter.rs # OutputFormatter trait
 │   │   └── mod.rs    # Module exports
+│   ├── types.rs      # Shared types (SortOrder enum)
 │   └── mod.rs        # Core module exports
 ├── adapters/         # External system integrations
 │   ├── git.rs        # Git integration via git2

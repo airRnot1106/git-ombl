@@ -8,7 +8,7 @@ use std::env;
 
 #[derive(Parser)]
 #[command(name = "git-ombl")]
-#[command(about = "Ultrathink git blame - trace complete line history")]
+#[command(about = "Git blame wrapper to display the full commit history for a line")]
 #[command(version)]
 struct Cli {
     /// File path to analyze
