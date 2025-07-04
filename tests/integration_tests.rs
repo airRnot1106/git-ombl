@@ -1,6 +1,6 @@
 use git_ombl::{
     ColoredFormatter, GitAdapter, JsonFormatter, LineHistory, LineHistoryUseCase, OutputFormatter,
-    TableFormatter, YamlFormatter,
+    SortOrder, TableFormatter, YamlFormatter,
 };
 use std::env;
 
@@ -38,7 +38,7 @@ fn assert_complete_history_traversal(history: &LineHistory) {
 fn test_sample_file_line_history_integration() {
     let use_case = create_use_case();
     let history = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
@@ -48,7 +48,7 @@ fn test_sample_file_line_history_integration() {
 fn test_sample_file_complete_history_traversal() {
     let use_case = create_use_case();
     let history = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
@@ -61,13 +61,13 @@ fn test_sample_file_different_lines() {
 
     // Test line 1 (modified 3 times)
     let history_line1 = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
     assert_basic_history_properties(&history_line1, "test_sample.rs", 1);
 
     // Test line 2 (should have only 1 commit - initial)
     let history_line2 = use_case
-        .get_line_history("test_sample.rs", 2, false)
+        .get_line_history("test_sample.rs", 2, SortOrder::Asc)
         .unwrap();
     assert_basic_history_properties(&history_line2, "test_sample.rs", 2);
 
@@ -82,7 +82,7 @@ fn test_sample_file_different_lines() {
 fn test_sample_file_with_all_formatters() {
     let use_case = create_use_case();
     let history = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
@@ -126,7 +126,7 @@ fn test_sample_file_with_all_formatters() {
 fn test_sample_file_commit_messages_and_authors() {
     let use_case = create_use_case();
     let history = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
@@ -166,7 +166,7 @@ fn test_sample_file_commit_messages_and_authors() {
 fn test_sample_file_change_types() {
     let use_case = create_use_case();
     let history = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
@@ -186,17 +186,17 @@ fn test_sample_file_change_types() {
 }
 
 #[test]
-fn test_sample_file_reverse_option_integration() {
+fn test_sample_file_sort_order_integration() {
     let use_case = create_use_case();
 
-    // Test normal order (ascending - oldest first)
+    // Test ascending order (oldest first)
     let history_normal = use_case
-        .get_line_history("test_sample.rs", 1, false)
+        .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
-    // Test reverse order (descending - newest first)
+    // Test descending order (newest first)
     let history_reverse = use_case
-        .get_line_history("test_sample.rs", 1, true)
+        .get_line_history("test_sample.rs", 1, SortOrder::Desc)
         .unwrap();
 
     assert_basic_history_properties(&history_normal, "test_sample.rs", 1);
@@ -208,31 +208,31 @@ fn test_sample_file_reverse_option_integration() {
     // Should have at least 2 entries to test ordering
     assert!(
         history_normal.entries.len() >= 2,
-        "Need at least 2 commits to test reverse ordering"
+        "Need at least 2 commits to test sort ordering"
     );
 
-    // Verify normal order: older timestamps should come first
+    // Verify ascending order: older timestamps should come first
     for i in 1..history_normal.entries.len() {
         assert!(
             history_normal.entries[i - 1].timestamp <= history_normal.entries[i].timestamp,
-            "Normal order should be chronological (oldest first)"
+            "Ascending order should be chronological (oldest first)"
         );
     }
 
-    // Verify reverse order: newer timestamps should come first
+    // Verify descending order: newer timestamps should come first
     for i in 1..history_reverse.entries.len() {
         assert!(
             history_reverse.entries[i - 1].timestamp >= history_reverse.entries[i].timestamp,
-            "Reverse order should be reverse chronological (newest first)"
+            "Descending order should be reverse chronological (newest first)"
         );
     }
 
-    // The first entry in normal order should be the last in reverse order
+    // The first entry in ascending order should be the last in descending order
     let normal_first = &history_normal.entries[0];
     let reverse_last = &history_reverse.entries[history_reverse.entries.len() - 1];
     assert_eq!(normal_first.commit_hash, reverse_last.commit_hash);
 
-    // The last entry in normal order should be the first in reverse order
+    // The last entry in ascending order should be the first in descending order
     let normal_last = &history_normal.entries[history_normal.entries.len() - 1];
     let reverse_first = &history_reverse.entries[0];
     assert_eq!(normal_last.commit_hash, reverse_first.commit_hash);
