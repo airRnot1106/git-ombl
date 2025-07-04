@@ -1,6 +1,6 @@
 # git-ombl
 
-**git-omni-blame** - Trace complete line history across all commits.
+**git-omni-blame** - Git blame wrapper to display the full commit history for a line.
 
 Unlike `git blame` which shows only the most recent change, git-ombl traces the entire history of a line through all commits that affected it.
 
