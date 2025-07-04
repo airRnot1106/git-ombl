@@ -173,6 +173,7 @@ jobs:
             git-ombl src/main.rs 42
             git-ombl src/main.rs 42 --format json
             git-ombl src/main.rs 42 --limit 10
+            git-ombl src/main.rs 42 --reverse
             ```
 
             ### Verification

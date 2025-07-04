@@ -25,7 +25,7 @@ struct Cli {
     #[arg(short, long)]
     limit: Option<usize>,
 
-    /// Reverse sort order (descending by default, ascending if reversed)
+    /// Reverse sort order (newest first instead of oldest first)
     #[arg(short, long)]
     reverse: bool,
 }

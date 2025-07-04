@@ -28,6 +28,7 @@ git-ombl <file> <line_number> [OPTIONS]
   - `yaml`: YAML format
   - `table`: Tabular format
 - `-l, --limit <LIMIT>`: Maximum number of commits to traverse
+- `-r, --reverse`: Reverse sort order (newest first instead of oldest first)
 - `-h, --help`: Print help
 - `-V, --version`: Print version
 
@@ -42,6 +43,9 @@ git-ombl src/main.rs 42 --format json
 
 # Limit to last 10 commits
 git-ombl src/main.rs 42 --limit 10
+
+# Show history in reverse order (newest first)
+git-ombl src/main.rs 42 --reverse
 ```
 
 ### Sample Output
