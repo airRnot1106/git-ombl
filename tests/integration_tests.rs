@@ -37,7 +37,9 @@ fn assert_complete_history_traversal(history: &LineHistory) {
 #[test]
 fn test_sample_file_line_history_integration() {
     let use_case = create_use_case();
-    let history = use_case.get_line_history("test_sample.rs", 1).unwrap();
+    let history = use_case
+        .get_line_history("test_sample.rs", 1, false)
+        .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
 }
@@ -45,7 +47,9 @@ fn test_sample_file_line_history_integration() {
 #[test]
 fn test_sample_file_complete_history_traversal() {
     let use_case = create_use_case();
-    let history = use_case.get_line_history("test_sample.rs", 1).unwrap();
+    let history = use_case
+        .get_line_history("test_sample.rs", 1, false)
+        .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
     assert_complete_history_traversal(&history);
@@ -56,11 +60,15 @@ fn test_sample_file_different_lines() {
     let use_case = create_use_case();
 
     // Test line 1 (modified 3 times)
-    let history_line1 = use_case.get_line_history("test_sample.rs", 1).unwrap();
+    let history_line1 = use_case
+        .get_line_history("test_sample.rs", 1, false)
+        .unwrap();
     assert_basic_history_properties(&history_line1, "test_sample.rs", 1);
 
     // Test line 2 (should have only 1 commit - initial)
-    let history_line2 = use_case.get_line_history("test_sample.rs", 2).unwrap();
+    let history_line2 = use_case
+        .get_line_history("test_sample.rs", 2, false)
+        .unwrap();
     assert_basic_history_properties(&history_line2, "test_sample.rs", 2);
 
     // Line 1 should have more history than line 2
@@ -73,7 +81,9 @@ fn test_sample_file_different_lines() {
 #[test]
 fn test_sample_file_with_all_formatters() {
     let use_case = create_use_case();
-    let history = use_case.get_line_history("test_sample.rs", 1).unwrap();
+    let history = use_case
+        .get_line_history("test_sample.rs", 1, false)
+        .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
 
@@ -115,7 +125,9 @@ fn test_sample_file_with_all_formatters() {
 #[test]
 fn test_sample_file_commit_messages_and_authors() {
     let use_case = create_use_case();
-    let history = use_case.get_line_history("test_sample.rs", 1).unwrap();
+    let history = use_case
+        .get_line_history("test_sample.rs", 1, false)
+        .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
 
@@ -153,7 +165,9 @@ fn test_sample_file_commit_messages_and_authors() {
 #[test]
 fn test_sample_file_change_types() {
     let use_case = create_use_case();
-    let history = use_case.get_line_history("test_sample.rs", 1).unwrap();
+    let history = use_case
+        .get_line_history("test_sample.rs", 1, false)
+        .unwrap();
 
     assert_basic_history_properties(&history, "test_sample.rs", 1);
     assert_complete_history_traversal(&history);

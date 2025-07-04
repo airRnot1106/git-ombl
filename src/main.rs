@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     let use_case = LineHistoryUseCase::new(git_adapter);
 
     // Get line history
-    let history = use_case.get_line_history(&cli.file, cli.line)?;
+    let history = use_case.get_line_history(&cli.file, cli.line, cli.reverse)?;
 
     // Create formatter based on format choice
     let formatter: Box<dyn OutputFormatter> = match cli.format {

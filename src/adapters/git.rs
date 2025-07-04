@@ -165,7 +165,12 @@ impl GitAdapter {
 }
 
 impl LineHistoryProvider for GitAdapter {
-    fn get_line_history(&self, file_path: &str, line_number: u32) -> Result<LineHistory> {
+    fn get_line_history(
+        &self,
+        file_path: &str,
+        line_number: u32,
+        reverse: bool,
+    ) -> Result<LineHistory> {
         // Use full history extraction for multiple commits
         let entries = self.extract_full_line_history(file_path, line_number)?;
 
@@ -322,7 +327,7 @@ mod tests {
         let temp_dir = setup_test_repo().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let history = adapter.get_line_history("test.txt", 1).unwrap();
+        let history = adapter.get_line_history("test.txt", 1, false).unwrap();
 
         assert_eq!(history.file_path, "test.txt");
         assert_eq!(history.line_number, 1);
@@ -336,7 +341,7 @@ mod tests {
         let temp_dir = setup_test_repo().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let result = adapter.get_line_history("nonexistent.txt", 1);
+        let result = adapter.get_line_history("nonexistent.txt", 1, false);
         assert!(result.is_err());
     }
 
@@ -345,7 +350,7 @@ mod tests {
         let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let history = adapter.get_line_history("test.txt", 1).unwrap();
+        let history = adapter.get_line_history("test.txt", 1, false).unwrap();
 
         assert_eq!(history.file_path, "test.txt");
         assert_eq!(history.line_number, 1);
