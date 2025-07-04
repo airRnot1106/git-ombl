@@ -8,5 +8,8 @@ pub trait LineHistoryProvider {
         file_path: &str,
         line_number: u32,
         sort_order: SortOrder,
+        ignore_revs: &[String],
+        since: Option<&str>,
+        until: Option<&str>,
     ) -> Result<LineHistory>;
 }

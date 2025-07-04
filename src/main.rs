@@ -28,6 +28,18 @@ struct Cli {
     /// Sort order for commit history
     #[arg(short, long, default_value = "asc")]
     sort: SortOrder,
+
+    /// Ignore changes made by the specified revision(s)
+    #[arg(long = "ignore-rev")]
+    ignore_revs: Vec<String>,
+
+    /// Show commits more recent than a specific date (e.g., "2023-01-01", "2023-01-01T12:00:00Z")
+    #[arg(long)]
+    since: Option<String>,
+
+    /// Show commits older than a specific date (e.g., "2023-12-31", "2023-12-31T23:59:59Z")
+    #[arg(long)]
+    until: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
@@ -51,7 +63,14 @@ fn main() -> Result<()> {
     let use_case = LineHistoryUseCase::new(git_adapter);
 
     // Get line history
-    let history = use_case.get_line_history(&cli.file, cli.line, cli.sort)?;
+    let history = use_case.get_line_history(
+        &cli.file,
+        cli.line,
+        cli.sort,
+        &cli.ignore_revs,
+        cli.since.as_deref(),
+        cli.until.as_deref(),
+    )?;
 
     // Create formatter based on format choice
     let formatter: Box<dyn OutputFormatter> = match cli.format {
@@ -128,6 +147,44 @@ mod tests {
     }
 
     #[test]
+    fn test_cli_parsing_with_single_ignore_rev() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--ignore-rev", "abc123def"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.ignore_revs.len(), 1);
+        assert_eq!(cli.ignore_revs[0], "abc123def");
+    }
+
+    #[test]
+    fn test_cli_parsing_with_multiple_ignore_revs() {
+        let cli = Cli::parse_from(&[
+            "git-ombl",
+            "test.rs",
+            "42",
+            "--ignore-rev",
+            "abc123def",
+            "--ignore-rev",
+            "def456ghi",
+        ]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.ignore_revs.len(), 2);
+        assert_eq!(cli.ignore_revs[0], "abc123def");
+        assert_eq!(cli.ignore_revs[1], "def456ghi");
+    }
+
+    #[test]
+    fn test_cli_parsing_with_no_ignore_revs() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert!(cli.ignore_revs.is_empty());
+    }
+
+    #[test]
     fn test_formatter_selection() {
         colored::control::set_override(true);
         let colored_formatter: Box<dyn OutputFormatter> = Box::new(ColoredFormatter::new());
@@ -150,5 +207,90 @@ mod tests {
         assert!(json_output.contains("\"file_path\""));
         assert!(table_output.contains("File: test.rs"));
         assert!(yaml_output.contains("file_path: test.rs"));
+    }
+
+    #[test]
+    fn test_cli_parsing_with_since_option() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--since", "2023-01-01"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.since, Some("2023-01-01".to_string()));
+        assert_eq!(cli.until, None);
+    }
+
+    #[test]
+    fn test_cli_parsing_with_until_option() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--until", "2023-12-31"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.since, None);
+        assert_eq!(cli.until, Some("2023-12-31".to_string()));
+    }
+
+    #[test]
+    fn test_cli_parsing_with_both_since_and_until() {
+        let cli = Cli::parse_from(&[
+            "git-ombl",
+            "test.rs",
+            "42",
+            "--since",
+            "2023-01-01T00:00:00Z",
+            "--until",
+            "2023-12-31T23:59:59Z",
+        ]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.since, Some("2023-01-01T00:00:00Z".to_string()));
+        assert_eq!(cli.until, Some("2023-12-31T23:59:59Z".to_string()));
+    }
+
+    #[test]
+    fn test_cli_parsing_with_since_rfc2822_format() {
+        let cli = Cli::parse_from(&[
+            "git-ombl",
+            "test.rs",
+            "42",
+            "--since",
+            "Mon, 01 Jan 2023 00:00:00 GMT",
+        ]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.since, Some("Mon, 01 Jan 2023 00:00:00 GMT".to_string()));
+    }
+
+    #[test]
+    fn test_cli_parsing_with_since_and_ignore_rev_combined() {
+        let cli = Cli::parse_from(&[
+            "git-ombl",
+            "test.rs",
+            "42",
+            "--since",
+            "2023-01-01",
+            "--ignore-rev",
+            "abc123def",
+            "--sort",
+            "desc",
+        ]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.since, Some("2023-01-01".to_string()));
+        assert_eq!(cli.ignore_revs.len(), 1);
+        assert_eq!(cli.ignore_revs[0], "abc123def");
+        assert!(matches!(cli.sort, SortOrder::Desc));
+    }
+
+    #[test]
+    fn test_cli_parsing_without_date_filters() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert_eq!(cli.since, None);
+        assert_eq!(cli.until, None);
     }
 }

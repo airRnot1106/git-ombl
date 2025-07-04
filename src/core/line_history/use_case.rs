@@ -16,9 +16,18 @@ impl<P: LineHistoryProvider> LineHistoryUseCase<P> {
         file_path: &str,
         line_number: u32,
         sort_order: SortOrder,
+        ignore_revs: &[String],
+        since: Option<&str>,
+        until: Option<&str>,
     ) -> Result<LineHistory> {
-        self.provider
-            .get_line_history(file_path, line_number, sort_order)
+        self.provider.get_line_history(
+            file_path,
+            line_number,
+            sort_order,
+            ignore_revs,
+            since,
+            until,
+        )
     }
 }
 
@@ -36,6 +45,9 @@ mod tests {
             _file_path: &str,
             _line_number: u32,
             _sort_order: SortOrder,
+            _ignore_revs: &[String],
+            _since: Option<&str>,
+            _until: Option<&str>,
         ) -> Result<LineHistory> {
             Ok(LineHistory::new("test.rs".to_string(), 42))
         }
@@ -49,6 +61,9 @@ mod tests {
             _file_path: &str,
             _line_number: u32,
             _sort_order: SortOrder,
+            _ignore_revs: &[String],
+            _since: Option<&str>,
+            _until: Option<&str>,
         ) -> Result<LineHistory> {
             let mut history = LineHistory::new("test.rs".to_string(), 42);
             history.add_entry(LineEntry {
@@ -68,7 +83,7 @@ mod tests {
         let provider = EmptyProvider;
         let use_case = LineHistoryUseCase::new(provider);
         let result = use_case
-            .get_line_history("test.rs", 42, SortOrder::Asc)
+            .get_line_history("test.rs", 42, SortOrder::Asc, &[], None, None)
             .unwrap();
 
         assert_eq!(result.file_path, "test.rs");
@@ -81,7 +96,7 @@ mod tests {
         let provider = PopulatedProvider;
         let use_case = LineHistoryUseCase::new(provider);
         let result = use_case
-            .get_line_history("test.rs", 42, SortOrder::Asc)
+            .get_line_history("test.rs", 42, SortOrder::Asc, &[], None, None)
             .unwrap();
 
         assert_eq!(result.file_path, "test.rs");
@@ -95,15 +110,75 @@ mod tests {
         let provider = PopulatedProvider;
         let use_case = LineHistoryUseCase::new(provider);
         let result_asc = use_case
-            .get_line_history("test.rs", 42, SortOrder::Asc)
+            .get_line_history("test.rs", 42, SortOrder::Asc, &[], None, None)
             .unwrap();
         let result_desc = use_case
-            .get_line_history("test.rs", 42, SortOrder::Desc)
+            .get_line_history("test.rs", 42, SortOrder::Desc, &[], None, None)
             .unwrap();
 
         assert_eq!(result_asc.file_path, "test.rs");
         assert_eq!(result_desc.file_path, "test.rs");
         assert_eq!(result_asc.line_number, 42);
         assert_eq!(result_desc.line_number, 42);
+    }
+
+    #[test]
+    fn test_use_case_with_ignore_revs_parameter() {
+        let provider = PopulatedProvider;
+        let use_case = LineHistoryUseCase::new(provider);
+        let ignore_revs = vec!["abc123".to_string()];
+        let result = use_case
+            .get_line_history("test.rs", 42, SortOrder::Asc, &ignore_revs, None, None)
+            .unwrap();
+
+        assert_eq!(result.file_path, "test.rs");
+        assert_eq!(result.line_number, 42);
+        // Note: PopulatedProvider doesn't actually filter, this just tests the parameter passing
+    }
+
+    #[test]
+    fn test_use_case_with_since_parameter() {
+        let provider = PopulatedProvider;
+        let use_case = LineHistoryUseCase::new(provider);
+        let result = use_case
+            .get_line_history("test.rs", 42, SortOrder::Asc, &[], Some("2023-01-01"), None)
+            .unwrap();
+
+        assert_eq!(result.file_path, "test.rs");
+        assert_eq!(result.line_number, 42);
+        // Note: PopulatedProvider doesn't actually filter, this just tests the parameter passing
+    }
+
+    #[test]
+    fn test_use_case_with_until_parameter() {
+        let provider = PopulatedProvider;
+        let use_case = LineHistoryUseCase::new(provider);
+        let result = use_case
+            .get_line_history("test.rs", 42, SortOrder::Asc, &[], None, Some("2023-12-31"))
+            .unwrap();
+
+        assert_eq!(result.file_path, "test.rs");
+        assert_eq!(result.line_number, 42);
+        // Note: PopulatedProvider doesn't actually filter, this just tests the parameter passing
+    }
+
+    #[test]
+    fn test_use_case_with_both_since_and_until_parameters() {
+        let provider = PopulatedProvider;
+        let use_case = LineHistoryUseCase::new(provider);
+        let result = use_case
+            .get_line_history(
+                "test.rs",
+                42,
+                SortOrder::Asc,
+                &[],
+                Some("2023-01-01"),
+                Some("2023-12-31"),
+            )
+            .unwrap();
+
+        assert_eq!(result.file_path, "test.rs");
+        assert_eq!(result.line_number, 42);
+        // Note: PopulatedProvider doesn't actually filter, this just tests the parameter passing
     }
 }

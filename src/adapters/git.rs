@@ -20,8 +20,12 @@ impl GitAdapter {
         file_path: &str,
         line_number: u32,
         sort_order: SortOrder,
+        ignore_revs: &[String],
+        since: Option<&str>,
+        until: Option<&str>,
     ) -> Result<Vec<LineEntry>> {
-        let commits = self.find_commits_affecting_file(file_path, line_number)?;
+        let commits =
+            self.find_commits_affecting_file(file_path, line_number, ignore_revs, since, until)?;
 
         // Check if the file exists in the repository at all
         if commits.is_empty() {
@@ -45,6 +49,9 @@ impl GitAdapter {
         &self,
         file_path: &str,
         line_number: u32,
+        ignore_revs: &[String],
+        since: Option<&str>,
+        until: Option<&str>,
     ) -> Result<Vec<git2::Commit<'_>>> {
         let mut commits = Vec::new();
         let mut revwalk = self.repository.revwalk()?;
@@ -63,6 +70,16 @@ impl GitAdapter {
 
             let commit = self.repository.find_commit(commit_oid)?;
 
+            // Check if this commit should be ignored
+            if self.should_ignore_commit(&commit, ignore_revs) {
+                continue;
+            }
+
+            // Check if this commit should be filtered by date
+            if !self.should_filter_by_date(&commit, since, until)? {
+                continue;
+            }
+
             if self.commit_affects_file(&commit, file_path)?
                 && self.commit_changes_line(file_path, line_number, &commit)?
             {
@@ -71,6 +88,83 @@ impl GitAdapter {
         }
 
         Ok(commits)
+    }
+
+    fn should_ignore_commit(&self, commit: &git2::Commit, ignore_revs: &[String]) -> bool {
+        let commit_hash = commit.id().to_string();
+
+        for ignore_rev in ignore_revs {
+            // Support both full hashes and abbreviated hashes
+            if commit_hash == *ignore_rev || commit_hash.starts_with(ignore_rev) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn parse_git_date(&self, date_str: &str) -> Result<DateTime<Utc>> {
+        use chrono::TimeZone;
+
+        // Try ISO 8601 format first (most precise)
+        if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+            return Ok(dt.with_timezone(&Utc));
+        }
+
+        // Try RFC 2822 format
+        if let Ok(dt) = DateTime::parse_from_rfc2822(date_str) {
+            return Ok(dt.with_timezone(&Utc));
+        }
+
+        // Try custom RFC-like format that git sometimes uses
+        if let Ok(dt) = DateTime::parse_from_str(date_str, "%a, %d %b %Y %H:%M:%S %Z") {
+            return Ok(dt.with_timezone(&Utc));
+        }
+
+        // Try simple date format (YYYY-MM-DD)
+        if let Ok(dt) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+            return Ok(Utc.from_utc_datetime(&dt.and_hms_opt(0, 0, 0).unwrap()));
+        }
+
+        // Try datetime format (YYYY-MM-DD HH:MM:SS)
+        if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S") {
+            return Ok(Utc.from_utc_datetime(&dt));
+        }
+
+        // If all else fails, return an error
+        Err(anyhow::anyhow!(
+            "Unable to parse date '{}'. Supported formats: ISO 8601 (YYYY-MM-DDTHH:MM:SSZ), RFC 2822, YYYY-MM-DD, YYYY-MM-DD HH:MM:SS",
+            date_str
+        ))
+    }
+
+    fn should_filter_by_date(
+        &self,
+        commit: &git2::Commit,
+        since: Option<&str>,
+        until: Option<&str>,
+    ) -> Result<bool> {
+        let commit_time = commit.time();
+        let commit_timestamp =
+            DateTime::from_timestamp(commit_time.seconds(), 0).unwrap_or_else(|| Utc::now());
+
+        // Check since filter
+        if let Some(since_str) = since {
+            let since_date = self.parse_git_date(since_str)?;
+            if commit_timestamp < since_date {
+                return Ok(false);
+            }
+        }
+
+        // Check until filter
+        if let Some(until_str) = until {
+            let until_date = self.parse_git_date(until_str)?;
+            if commit_timestamp > until_date {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     fn commit_affects_file(&self, commit: &git2::Commit, file_path: &str) -> Result<bool> {
@@ -183,9 +277,19 @@ impl LineHistoryProvider for GitAdapter {
         file_path: &str,
         line_number: u32,
         sort_order: SortOrder,
+        ignore_revs: &[String],
+        since: Option<&str>,
+        until: Option<&str>,
     ) -> Result<LineHistory> {
         // Use full history extraction for multiple commits
-        let entries = self.extract_full_line_history(file_path, line_number, sort_order)?;
+        let entries = self.extract_full_line_history(
+            file_path,
+            line_number,
+            sort_order,
+            ignore_revs,
+            since,
+            until,
+        )?;
 
         let mut history = LineHistory::new(file_path.to_string(), line_number);
         for entry in entries {
@@ -341,7 +445,7 @@ mod tests {
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
         let history = adapter
-            .get_line_history("test.txt", 1, SortOrder::Asc)
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
             .unwrap();
 
         assert_eq!(history.file_path, "test.txt");
@@ -356,7 +460,8 @@ mod tests {
         let temp_dir = setup_test_repo().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let result = adapter.get_line_history("nonexistent.txt", 1, SortOrder::Asc);
+        let result =
+            adapter.get_line_history("nonexistent.txt", 1, SortOrder::Asc, &[], None, None);
         assert!(result.is_err());
     }
 
@@ -366,7 +471,7 @@ mod tests {
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
         let history = adapter
-            .get_line_history("test.txt", 1, SortOrder::Asc)
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
             .unwrap();
 
         assert_eq!(history.file_path, "test.txt");
@@ -399,12 +504,12 @@ mod tests {
 
         // Test ascending order (oldest first)
         let history_asc = adapter
-            .get_line_history("test.txt", 1, SortOrder::Asc)
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
             .unwrap();
 
         // Test descending order (newest first)
         let history_desc = adapter
-            .get_line_history("test.txt", 1, SortOrder::Desc)
+            .get_line_history("test.txt", 1, SortOrder::Desc, &[], None, None)
             .unwrap();
 
         // Both should have the same number of entries
@@ -436,5 +541,217 @@ mod tests {
         // Verify descending order has later timestamps first
         assert!(history_desc.entries[0].timestamp >= history_desc.entries[1].timestamp);
         assert!(history_desc.entries[1].timestamp >= history_desc.entries[2].timestamp);
+    }
+
+    #[test]
+    fn test_git_adapter_ignore_single_revision() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // First get all commits to find one to ignore
+        let history_all = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
+            .unwrap();
+
+        assert_eq!(history_all.entries.len(), 3);
+
+        // Get the hash of the second commit to ignore
+        let ignore_hash = &history_all.entries[1].commit_hash[..8]; // Use abbreviated hash
+        let ignore_revs = vec![ignore_hash.to_string()];
+
+        // Test with ignored revision
+        let history_filtered = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &ignore_revs, None, None)
+            .unwrap();
+
+        // Should have one less commit
+        assert_eq!(history_filtered.entries.len(), 2);
+
+        // Verify the ignored commit is not present
+        for entry in &history_filtered.entries {
+            assert!(!entry.commit_hash.starts_with(ignore_hash));
+        }
+    }
+
+    #[test]
+    fn test_git_adapter_ignore_multiple_revisions() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // First get all commits
+        let history_all = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
+            .unwrap();
+
+        assert_eq!(history_all.entries.len(), 3);
+
+        // Ignore first and third commits
+        let ignore_revs = vec![
+            history_all.entries[0].commit_hash[..8].to_string(),
+            history_all.entries[2].commit_hash[..8].to_string(),
+        ];
+
+        let history_filtered = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &ignore_revs, None, None)
+            .unwrap();
+
+        // Should have only one commit remaining
+        assert_eq!(history_filtered.entries.len(), 1);
+        assert_eq!(
+            history_filtered.entries[0].message,
+            "Update line 1 - first change"
+        );
+    }
+
+    #[test]
+    fn test_git_adapter_ignore_nonexistent_revision() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Use a fake hash that doesn't exist
+        let ignore_revs = vec!["fakehash123".to_string()];
+
+        let history_normal = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
+            .unwrap();
+
+        let history_with_fake_ignore = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &ignore_revs, None, None)
+            .unwrap();
+
+        // Should have the same number of commits since fake hash doesn't match anything
+        assert_eq!(
+            history_normal.entries.len(),
+            history_with_fake_ignore.entries.len()
+        );
+    }
+
+    #[test]
+    fn test_git_adapter_parse_date_iso8601() {
+        let temp_dir = setup_test_repo().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Test parsing various ISO 8601 formats
+        let iso_date = "2023-01-01T00:00:00Z";
+        let parsed = adapter.parse_git_date(iso_date).unwrap();
+        assert_eq!(parsed.timestamp(), 1672531200); // 2023-01-01 UTC
+
+        let iso_with_tz = "2023-01-01T09:00:00+09:00";
+        let parsed_tz = adapter.parse_git_date(iso_with_tz).unwrap();
+        assert_eq!(parsed_tz.timestamp(), 1672531200); // Same UTC time
+    }
+
+    #[test]
+    fn test_git_adapter_parse_date_simple_formats() {
+        let temp_dir = setup_test_repo().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Test simple date format
+        let simple_date = "2023-01-01";
+        let parsed = adapter.parse_git_date(simple_date).unwrap();
+        assert_eq!(parsed.format("%Y-%m-%d").to_string(), "2023-01-01");
+
+        // Test datetime format
+        let datetime = "2023-01-01 12:00:00";
+        let parsed_dt = adapter.parse_git_date(datetime).unwrap();
+        assert_eq!(parsed_dt.format("%H").to_string(), "12");
+    }
+
+    #[test]
+    fn test_git_adapter_parse_date_formats() {
+        let temp_dir = setup_test_repo().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Test additional formats
+        let iso_local = "2023-01-01T00:00:00";
+        let parsed = adapter.parse_git_date(iso_local);
+        assert!(parsed.is_err()); // Should fail without timezone
+
+        // Test error case
+        let invalid_date = "not-a-date";
+        let result = adapter.parse_git_date(invalid_date);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_git_adapter_filter_by_since_date() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Get all commits first
+        let history_all = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
+            .unwrap();
+
+        assert_eq!(history_all.entries.len(), 3);
+
+        // Filter to only show commits from a specific date onwards
+        // Use a timestamp between the first and second commit
+        let since_date = "1970-01-01T00:25:00Z"; // 1500 seconds epoch
+        let history_filtered = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], Some(since_date), None)
+            .unwrap();
+
+        // Should have fewer commits (only those after the since date)
+        assert!(history_filtered.entries.len() <= history_all.entries.len());
+        assert!(history_filtered.entries.len() >= 2); // Should have at least 2 commits
+    }
+
+    #[test]
+    fn test_git_adapter_filter_by_until_date() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Get all commits first
+        let history_all = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
+            .unwrap();
+
+        assert_eq!(history_all.entries.len(), 3);
+
+        // Filter to only show commits up to a specific date
+        // Use a timestamp between the second and third commit
+        let until_date = "1970-01-01T00:35:00Z"; // 2100 seconds epoch
+        let history_filtered = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, Some(until_date))
+            .unwrap();
+
+        // Should have fewer commits (only those before the until date)
+        assert!(history_filtered.entries.len() <= history_all.entries.len());
+        assert!(history_filtered.entries.len() >= 1); // Should have at least 1 commit
+    }
+
+    #[test]
+    fn test_git_adapter_filter_by_date_range() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Get all commits first
+        let history_all = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc, &[], None, None)
+            .unwrap();
+
+        assert_eq!(history_all.entries.len(), 3);
+
+        // Filter to a specific date range that should include only the middle commit
+        let since_date = "1970-01-01T00:25:00Z"; // 1500 seconds
+        let until_date = "1970-01-01T00:35:00Z"; // 2100 seconds
+        let history_filtered = adapter
+            .get_line_history(
+                "test.txt",
+                1,
+                SortOrder::Asc,
+                &[],
+                Some(since_date),
+                Some(until_date),
+            )
+            .unwrap();
+
+        // Should have exactly 1 commit (the middle one)
+        assert_eq!(history_filtered.entries.len(), 1);
+        assert_eq!(
+            history_filtered.entries[0].message,
+            "Update line 1 - first change"
+        );
     }
 }
