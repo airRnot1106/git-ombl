@@ -1,4 +1,5 @@
 use crate::core::line_history::{ChangeType, LineEntry, LineHistory, LineHistoryProvider};
+use crate::core::types::SortOrder;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use git2::Repository;
@@ -18,7 +19,7 @@ impl GitAdapter {
         &self,
         file_path: &str,
         line_number: u32,
-        reverse: bool,
+        sort_order: SortOrder,
     ) -> Result<Vec<LineEntry>> {
         let commits = self.find_commits_affecting_file(file_path, line_number)?;
 
@@ -37,7 +38,7 @@ impl GitAdapter {
         }
 
         let entries = self.convert_commits_to_entries(commits)?;
-        self.sort_entries_chronologically(entries, reverse)
+        self.sort_entries_chronologically(entries, sort_order)
     }
 
     fn find_commits_affecting_file(
@@ -117,12 +118,15 @@ impl GitAdapter {
     fn sort_entries_chronologically(
         &self,
         mut entries: Vec<LineEntry>,
-        reverse: bool,
+        sort_order: SortOrder,
     ) -> Result<Vec<LineEntry>> {
-        if reverse {
-            entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp)); // Newest first
-        } else {
-            entries.sort_by(|a, b| a.timestamp.cmp(&b.timestamp)); // Oldest first
+        match sort_order {
+            SortOrder::Desc => {
+                entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp)); // Newest first
+            }
+            SortOrder::Asc => {
+                entries.sort_by(|a, b| a.timestamp.cmp(&b.timestamp)); // Oldest first
+            }
         }
         Ok(entries)
     }
@@ -178,10 +182,10 @@ impl LineHistoryProvider for GitAdapter {
         &self,
         file_path: &str,
         line_number: u32,
-        reverse: bool,
+        sort_order: SortOrder,
     ) -> Result<LineHistory> {
         // Use full history extraction for multiple commits
-        let entries = self.extract_full_line_history(file_path, line_number, reverse)?;
+        let entries = self.extract_full_line_history(file_path, line_number, sort_order)?;
 
         let mut history = LineHistory::new(file_path.to_string(), line_number);
         for entry in entries {
@@ -336,7 +340,9 @@ mod tests {
         let temp_dir = setup_test_repo().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let history = adapter.get_line_history("test.txt", 1, false).unwrap();
+        let history = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc)
+            .unwrap();
 
         assert_eq!(history.file_path, "test.txt");
         assert_eq!(history.line_number, 1);
@@ -350,7 +356,7 @@ mod tests {
         let temp_dir = setup_test_repo().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let result = adapter.get_line_history("nonexistent.txt", 1, false);
+        let result = adapter.get_line_history("nonexistent.txt", 1, SortOrder::Asc);
         assert!(result.is_err());
     }
 
@@ -359,7 +365,9 @@ mod tests {
         let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        let history = adapter.get_line_history("test.txt", 1, false).unwrap();
+        let history = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc)
+            .unwrap();
 
         assert_eq!(history.file_path, "test.txt");
         assert_eq!(history.line_number, 1);
@@ -390,10 +398,14 @@ mod tests {
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
         // Test normal order (ascending - oldest first)
-        let history_normal = adapter.get_line_history("test.txt", 1, false).unwrap();
+        let history_normal = adapter
+            .get_line_history("test.txt", 1, SortOrder::Asc)
+            .unwrap();
 
         // Test reverse order (descending - newest first)
-        let history_reverse = adapter.get_line_history("test.txt", 1, true).unwrap();
+        let history_reverse = adapter
+            .get_line_history("test.txt", 1, SortOrder::Desc)
+            .unwrap();
 
         // Both should have the same number of entries
         assert_eq!(history_normal.entries.len(), history_reverse.entries.len());

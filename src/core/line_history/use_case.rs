@@ -1,4 +1,5 @@
 use crate::core::line_history::{LineHistory, LineHistoryProvider};
+use crate::core::types::SortOrder;
 use anyhow::Result;
 
 pub struct LineHistoryUseCase<P: LineHistoryProvider> {
@@ -14,10 +15,10 @@ impl<P: LineHistoryProvider> LineHistoryUseCase<P> {
         &self,
         file_path: &str,
         line_number: u32,
-        reverse: bool,
+        sort_order: SortOrder,
     ) -> Result<LineHistory> {
         self.provider
-            .get_line_history(file_path, line_number, reverse)
+            .get_line_history(file_path, line_number, sort_order)
     }
 }
 
@@ -34,7 +35,7 @@ mod tests {
             &self,
             _file_path: &str,
             _line_number: u32,
-            _reverse: bool,
+            _sort_order: SortOrder,
         ) -> Result<LineHistory> {
             Ok(LineHistory::new("test.rs".to_string(), 42))
         }
@@ -47,7 +48,7 @@ mod tests {
             &self,
             _file_path: &str,
             _line_number: u32,
-            _reverse: bool,
+            _sort_order: SortOrder,
         ) -> Result<LineHistory> {
             let mut history = LineHistory::new("test.rs".to_string(), 42);
             history.add_entry(LineEntry {
@@ -66,7 +67,9 @@ mod tests {
     fn test_use_case_creation() {
         let provider = EmptyProvider;
         let use_case = LineHistoryUseCase::new(provider);
-        let result = use_case.get_line_history("test.rs", 42, false).unwrap();
+        let result = use_case
+            .get_line_history("test.rs", 42, SortOrder::Asc)
+            .unwrap();
 
         assert_eq!(result.file_path, "test.rs");
         assert_eq!(result.line_number, 42);
@@ -77,7 +80,9 @@ mod tests {
     fn test_use_case_with_populated_history() {
         let provider = PopulatedProvider;
         let use_case = LineHistoryUseCase::new(provider);
-        let result = use_case.get_line_history("test.rs", 42, false).unwrap();
+        let result = use_case
+            .get_line_history("test.rs", 42, SortOrder::Asc)
+            .unwrap();
 
         assert_eq!(result.file_path, "test.rs");
         assert_eq!(result.line_number, 42);
@@ -86,15 +91,19 @@ mod tests {
     }
 
     #[test]
-    fn test_use_case_with_reverse_parameter() {
+    fn test_use_case_with_sort_order_parameter() {
         let provider = PopulatedProvider;
         let use_case = LineHistoryUseCase::new(provider);
-        let result_normal = use_case.get_line_history("test.rs", 42, false).unwrap();
-        let result_reverse = use_case.get_line_history("test.rs", 42, true).unwrap();
+        let result_asc = use_case
+            .get_line_history("test.rs", 42, SortOrder::Asc)
+            .unwrap();
+        let result_desc = use_case
+            .get_line_history("test.rs", 42, SortOrder::Desc)
+            .unwrap();
 
-        assert_eq!(result_normal.file_path, "test.rs");
-        assert_eq!(result_reverse.file_path, "test.rs");
-        assert_eq!(result_normal.line_number, 42);
-        assert_eq!(result_reverse.line_number, 42);
+        assert_eq!(result_asc.file_path, "test.rs");
+        assert_eq!(result_desc.file_path, "test.rs");
+        assert_eq!(result_asc.line_number, 42);
+        assert_eq!(result_desc.line_number, 42);
     }
 }

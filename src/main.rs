@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use git_ombl::{
-    ColoredFormatter, GitAdapter, JsonFormatter, LineHistoryUseCase, OutputFormatter,
+    ColoredFormatter, GitAdapter, JsonFormatter, LineHistoryUseCase, OutputFormatter, SortOrder,
     TableFormatter, YamlFormatter,
 };
 use std::env;
@@ -38,12 +38,6 @@ enum Format {
     Yaml,
 }
 
-#[derive(Clone, Debug, PartialEq, ValueEnum)]
-enum SortOrder {
-    Asc,
-    Desc,
-}
-
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -57,8 +51,7 @@ fn main() -> Result<()> {
     let use_case = LineHistoryUseCase::new(git_adapter);
 
     // Get line history
-    let reverse = matches!(cli.sort, SortOrder::Desc);
-    let history = use_case.get_line_history(&cli.file, cli.line, reverse)?;
+    let history = use_case.get_line_history(&cli.file, cli.line, cli.sort)?;
 
     // Create formatter based on format choice
     let formatter: Box<dyn OutputFormatter> = match cli.format {

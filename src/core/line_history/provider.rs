@@ -1,4 +1,5 @@
 use crate::core::line_history::domain::LineHistory;
+use crate::core::types::SortOrder;
 use anyhow::Result;
 
 pub trait LineHistoryProvider {
@@ -6,6 +7,6 @@ pub trait LineHistoryProvider {
         &self,
         file_path: &str,
         line_number: u32,
-        reverse: bool,
+        sort_order: SortOrder,
     ) -> Result<LineHistory>;
 }
