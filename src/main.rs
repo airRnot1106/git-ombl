@@ -24,6 +24,10 @@ struct Cli {
     /// Maximum number of commits to traverse
     #[arg(short, long)]
     limit: Option<usize>,
+
+    /// Reverse sort order (descending by default, ascending if reversed)
+    #[arg(short, long)]
+    reverse: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
@@ -86,6 +90,24 @@ mod tests {
         assert_eq!(cli.file, "test.rs");
         assert_eq!(cli.line, 42);
         assert!(matches!(cli.format, Format::Json));
+    }
+
+    #[test]
+    fn test_cli_parsing_with_reverse_option() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--reverse"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert!(cli.reverse);
+    }
+
+    #[test]
+    fn test_cli_parsing_without_reverse_option() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert!(!cli.reverse);
     }
 
     #[test]
