@@ -18,6 +18,7 @@ impl GitAdapter {
         &self,
         file_path: &str,
         line_number: u32,
+        reverse: bool,
     ) -> Result<Vec<LineEntry>> {
         let commits = self.find_commits_affecting_file(file_path, line_number)?;
 
@@ -36,7 +37,7 @@ impl GitAdapter {
         }
 
         let entries = self.convert_commits_to_entries(commits)?;
-        self.sort_entries_chronologically(entries)
+        self.sort_entries_chronologically(entries, reverse)
     }
 
     fn find_commits_affecting_file(
@@ -113,8 +114,16 @@ impl GitAdapter {
         })
     }
 
-    fn sort_entries_chronologically(&self, mut entries: Vec<LineEntry>) -> Result<Vec<LineEntry>> {
-        entries.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    fn sort_entries_chronologically(
+        &self,
+        mut entries: Vec<LineEntry>,
+        reverse: bool,
+    ) -> Result<Vec<LineEntry>> {
+        if reverse {
+            entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp)); // Newest first
+        } else {
+            entries.sort_by(|a, b| a.timestamp.cmp(&b.timestamp)); // Oldest first
+        }
         Ok(entries)
     }
 
@@ -172,7 +181,7 @@ impl LineHistoryProvider for GitAdapter {
         reverse: bool,
     ) -> Result<LineHistory> {
         // Use full history extraction for multiple commits
-        let entries = self.extract_full_line_history(file_path, line_number)?;
+        let entries = self.extract_full_line_history(file_path, line_number, reverse)?;
 
         let mut history = LineHistory::new(file_path.to_string(), line_number);
         for entry in entries {
@@ -373,5 +382,47 @@ mod tests {
         assert_eq!(history.entries[0].message, "Initial commit");
         assert_eq!(history.entries[1].message, "Update line 1 - first change");
         assert_eq!(history.entries[2].message, "Update line 1 - second change");
+    }
+
+    #[test]
+    fn test_git_adapter_reverse_sort_order() {
+        let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
+        let adapter = GitAdapter::new(temp_dir.path()).unwrap();
+
+        // Test normal order (ascending - oldest first)
+        let history_normal = adapter.get_line_history("test.txt", 1, false).unwrap();
+
+        // Test reverse order (descending - newest first)
+        let history_reverse = adapter.get_line_history("test.txt", 1, true).unwrap();
+
+        // Both should have the same number of entries
+        assert_eq!(history_normal.entries.len(), history_reverse.entries.len());
+        assert_eq!(history_normal.entries.len(), 3);
+
+        // Normal order: oldest first
+        assert_eq!(history_normal.entries[0].message, "Initial commit");
+        assert_eq!(
+            history_normal.entries[1].message,
+            "Update line 1 - first change"
+        );
+        assert_eq!(
+            history_normal.entries[2].message,
+            "Update line 1 - second change"
+        );
+
+        // Reverse order: newest first
+        assert_eq!(
+            history_reverse.entries[0].message,
+            "Update line 1 - second change"
+        );
+        assert_eq!(
+            history_reverse.entries[1].message,
+            "Update line 1 - first change"
+        );
+        assert_eq!(history_reverse.entries[2].message, "Initial commit");
+
+        // Verify reverse order has later timestamps first
+        assert!(history_reverse.entries[0].timestamp >= history_reverse.entries[1].timestamp);
+        assert!(history_reverse.entries[1].timestamp >= history_reverse.entries[2].timestamp);
     }
 }
