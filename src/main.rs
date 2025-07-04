@@ -25,9 +25,9 @@ struct Cli {
     #[arg(short, long)]
     limit: Option<usize>,
 
-    /// Reverse sort order (newest first instead of oldest first)
-    #[arg(short, long)]
-    reverse: bool,
+    /// Sort order for commit history
+    #[arg(short, long, default_value = "asc")]
+    sort: SortOrder,
 }
 
 #[derive(Clone, Debug, PartialEq, ValueEnum)]
@@ -36,6 +36,12 @@ enum Format {
     Json,
     Table,
     Yaml,
+}
+
+#[derive(Clone, Debug, PartialEq, ValueEnum)]
+enum SortOrder {
+    Asc,
+    Desc,
 }
 
 fn main() -> Result<()> {
@@ -51,7 +57,8 @@ fn main() -> Result<()> {
     let use_case = LineHistoryUseCase::new(git_adapter);
 
     // Get line history
-    let history = use_case.get_line_history(&cli.file, cli.line, cli.reverse)?;
+    let reverse = matches!(cli.sort, SortOrder::Desc);
+    let history = use_case.get_line_history(&cli.file, cli.line, reverse)?;
 
     // Create formatter based on format choice
     let formatter: Box<dyn OutputFormatter> = match cli.format {
@@ -84,6 +91,14 @@ mod tests {
     }
 
     #[test]
+    fn test_sort_order_enum_parsing() {
+        use clap::ValueEnum;
+
+        assert_eq!(SortOrder::from_str("asc", true).unwrap(), SortOrder::Asc);
+        assert_eq!(SortOrder::from_str("desc", true).unwrap(), SortOrder::Desc);
+    }
+
+    #[test]
     fn test_cli_parsing() {
         let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--format", "json"]);
 
@@ -93,21 +108,30 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_parsing_with_reverse_option() {
-        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--reverse"]);
+    fn test_cli_parsing_with_sort_desc() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--sort", "desc"]);
 
         assert_eq!(cli.file, "test.rs");
         assert_eq!(cli.line, 42);
-        assert!(cli.reverse);
+        assert!(matches!(cli.sort, SortOrder::Desc));
     }
 
     #[test]
-    fn test_cli_parsing_without_reverse_option() {
+    fn test_cli_parsing_with_sort_asc() {
+        let cli = Cli::parse_from(&["git-ombl", "test.rs", "42", "--sort", "asc"]);
+
+        assert_eq!(cli.file, "test.rs");
+        assert_eq!(cli.line, 42);
+        assert!(matches!(cli.sort, SortOrder::Asc));
+    }
+
+    #[test]
+    fn test_cli_parsing_default_sort() {
         let cli = Cli::parse_from(&["git-ombl", "test.rs", "42"]);
 
         assert_eq!(cli.file, "test.rs");
         assert_eq!(cli.line, 42);
-        assert!(!cli.reverse);
+        assert!(matches!(cli.sort, SortOrder::Asc));
     }
 
     #[test]
