@@ -393,48 +393,48 @@ mod tests {
     }
 
     #[test]
-    fn test_git_adapter_reverse_sort_order() {
+    fn test_git_adapter_sort_order() {
         let temp_dir = setup_test_repo_with_multiple_commits().unwrap();
         let adapter = GitAdapter::new(temp_dir.path()).unwrap();
 
-        // Test normal order (ascending - oldest first)
-        let history_normal = adapter
+        // Test ascending order (oldest first)
+        let history_asc = adapter
             .get_line_history("test.txt", 1, SortOrder::Asc)
             .unwrap();
 
-        // Test reverse order (descending - newest first)
-        let history_reverse = adapter
+        // Test descending order (newest first)
+        let history_desc = adapter
             .get_line_history("test.txt", 1, SortOrder::Desc)
             .unwrap();
 
         // Both should have the same number of entries
-        assert_eq!(history_normal.entries.len(), history_reverse.entries.len());
-        assert_eq!(history_normal.entries.len(), 3);
+        assert_eq!(history_asc.entries.len(), history_desc.entries.len());
+        assert_eq!(history_asc.entries.len(), 3);
 
-        // Normal order: oldest first
-        assert_eq!(history_normal.entries[0].message, "Initial commit");
+        // Ascending order: oldest first
+        assert_eq!(history_asc.entries[0].message, "Initial commit");
         assert_eq!(
-            history_normal.entries[1].message,
+            history_asc.entries[1].message,
             "Update line 1 - first change"
         );
         assert_eq!(
-            history_normal.entries[2].message,
+            history_asc.entries[2].message,
             "Update line 1 - second change"
         );
 
-        // Reverse order: newest first
+        // Descending order: newest first
         assert_eq!(
-            history_reverse.entries[0].message,
+            history_desc.entries[0].message,
             "Update line 1 - second change"
         );
         assert_eq!(
-            history_reverse.entries[1].message,
+            history_desc.entries[1].message,
             "Update line 1 - first change"
         );
-        assert_eq!(history_reverse.entries[2].message, "Initial commit");
+        assert_eq!(history_desc.entries[2].message, "Initial commit");
 
-        // Verify reverse order has later timestamps first
-        assert!(history_reverse.entries[0].timestamp >= history_reverse.entries[1].timestamp);
-        assert!(history_reverse.entries[1].timestamp >= history_reverse.entries[2].timestamp);
+        // Verify descending order has later timestamps first
+        assert!(history_desc.entries[0].timestamp >= history_desc.entries[1].timestamp);
+        assert!(history_desc.entries[1].timestamp >= history_desc.entries[2].timestamp);
     }
 }

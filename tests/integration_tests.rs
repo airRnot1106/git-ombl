@@ -190,50 +190,50 @@ fn test_sample_file_sort_order_integration() {
     let use_case = create_use_case();
 
     // Test ascending order (oldest first)
-    let history_normal = use_case
+    let history_asc = use_case
         .get_line_history("test_sample.rs", 1, SortOrder::Asc)
         .unwrap();
 
     // Test descending order (newest first)
-    let history_reverse = use_case
+    let history_desc = use_case
         .get_line_history("test_sample.rs", 1, SortOrder::Desc)
         .unwrap();
 
-    assert_basic_history_properties(&history_normal, "test_sample.rs", 1);
-    assert_basic_history_properties(&history_reverse, "test_sample.rs", 1);
+    assert_basic_history_properties(&history_asc, "test_sample.rs", 1);
+    assert_basic_history_properties(&history_desc, "test_sample.rs", 1);
 
     // Both should have the same number of entries
-    assert_eq!(history_normal.entries.len(), history_reverse.entries.len());
+    assert_eq!(history_asc.entries.len(), history_desc.entries.len());
 
     // Should have at least 2 entries to test ordering
     assert!(
-        history_normal.entries.len() >= 2,
+        history_asc.entries.len() >= 2,
         "Need at least 2 commits to test sort ordering"
     );
 
     // Verify ascending order: older timestamps should come first
-    for i in 1..history_normal.entries.len() {
+    for i in 1..history_asc.entries.len() {
         assert!(
-            history_normal.entries[i - 1].timestamp <= history_normal.entries[i].timestamp,
+            history_asc.entries[i - 1].timestamp <= history_asc.entries[i].timestamp,
             "Ascending order should be chronological (oldest first)"
         );
     }
 
     // Verify descending order: newer timestamps should come first
-    for i in 1..history_reverse.entries.len() {
+    for i in 1..history_desc.entries.len() {
         assert!(
-            history_reverse.entries[i - 1].timestamp >= history_reverse.entries[i].timestamp,
-            "Descending order should be reverse chronological (newest first)"
+            history_desc.entries[i - 1].timestamp >= history_desc.entries[i].timestamp,
+            "Descending order should be reverse-chronological (newest first)"
         );
     }
 
     // The first entry in ascending order should be the last in descending order
-    let normal_first = &history_normal.entries[0];
-    let reverse_last = &history_reverse.entries[history_reverse.entries.len() - 1];
-    assert_eq!(normal_first.commit_hash, reverse_last.commit_hash);
+    let asc_first = &history_asc.entries[0];
+    let desc_last = &history_desc.entries[history_desc.entries.len() - 1];
+    assert_eq!(asc_first.commit_hash, desc_last.commit_hash);
 
     // The last entry in ascending order should be the first in descending order
-    let normal_last = &history_normal.entries[history_normal.entries.len() - 1];
-    let reverse_first = &history_reverse.entries[0];
-    assert_eq!(normal_last.commit_hash, reverse_first.commit_hash);
+    let asc_last = &history_asc.entries[history_asc.entries.len() - 1];
+    let desc_first = &history_desc.entries[0];
+    assert_eq!(asc_last.commit_hash, desc_first.commit_hash);
 }
